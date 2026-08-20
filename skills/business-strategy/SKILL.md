@@ -5,7 +5,7 @@ description: Use dsh-business for business model, monetization, pricing architec
 
 # 商业策略与商业化
 
-`dsh-business` 位于 `dsh-idea` / `dsh-product` 和 `dsh-growth` 之间：它把机会、产品结果和增长数据连接成商业决策。已确认的商业条件进入客户成交推进时交给 `dsh-sales`。它不替代需求发现、产品交付、销售推进或增长执行。
+`dsh-business` 是贯穿 `dsh-idea`、`dsh-product`、`dsh-geo`、`dsh-growth` 和 `dsh-sales` 的商业策略层：它把需求机会、产品价值、营销经济和变现结果连接成商业决策。已确认的商业条件进入客户成交推进时交给 `dsh-sales`。它不替代需求发现、产品交付、营销内容执行、销售推进或增长执行。
 
 ## 工具边界
 

@@ -1,5 +1,9 @@
 # dsh-business
 
+English | [中文](./README.zh.md)
+
+商业策略与商业化插件，覆盖商业模式、定价与渠道价盘、盈利能力、电梯 Pitch 和商业计划。
+
 Evidence-backed business strategy and commercialization tools for business models, pricing architecture, channel economics, profitability, elevator pitches and business plans.
 
 ## Plugin Positioning: Cross-Cutting Commercial Strategy Layer
@@ -19,16 +23,25 @@ The six plugins work together to turn a real demand signal into a deliverable pr
 ```mermaid
 flowchart TB
     S["dsh-business<br/>Commercial strategy layer<br/>Value · model · pricing · profit"]
-    A["Demand<br/>dsh-idea"] --> B["Product<br/>dsh-product"]
-    B --> C["Marketing<br/>dsh-geo + dsh-growth"]
-    C --> D["Monetization execution<br/>dsh-sales"]
-    S -.-> A
-    S -.-> B
-    S -.-> C
-    S -.-> D
-    D --> F["Deals · renewals · revenue · cost feedback"]
-    F -->|Product iteration| B
-    F -->|New demand / opportunities| A
+
+    subgraph MAIN["Four-stage core flow"]
+        direction LR
+        A["1. Demand<br/>dsh-idea"] --> B["2. Product<br/>dsh-product"]
+        B --> C["3. Marketing<br/>dsh-geo + dsh-growth"]
+        C --> D["4. Monetization execution<br/>dsh-sales"]
+    end
+
+    S -. "Sets commercial direction and guardrails" .-> A
+    D --> R["Feedback<br/>Deals · renewals · revenue · cost"]
+    R -->|Product iteration| B
+    R -->|New demand / opportunities| A
+
+    classDef strategy fill:#FFF4D6,stroke:#B7791F,color:#5C4500
+    classDef stage fill:#E8F1FF,stroke:#3366CC,color:#173A7A
+    classDef feedback fill:#E8F7EE,stroke:#2F855A,color:#1C4532
+    class S strategy
+    class A,B,C,D stage
+    class R feedback
 ```
 
 `dsh-business` answers: **“Why will customers buy, what should we sell, how should we price it, and is each deal becoming healthier?”** It does not occupy one stage; it provides commercial judgment across all four stages. Monetization data, pricing objections, discounts, losses and renewals feed back to [dsh-product](../dsh-product/README.md) for product iteration and to [dsh-idea](../dsh-idea/README.md) for new demand discovery.
