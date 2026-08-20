@@ -1,0 +1,10 @@
+node_modules/
+lib/
+coverage/
+.env
+.DS_Store
+*.log
+*.tgz
+__pycache__/
+*.pyc
+docs/

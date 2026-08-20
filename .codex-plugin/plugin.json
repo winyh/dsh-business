@@ -1,0 +1,26 @@
+{
+  "name": "dsh-business",
+  "version": "0.1.0+codex.20260820025248",
+  "description": "Evidence-backed business strategy and commercialization from business model through pricing, profitability, elevator pitch and business plan.",
+  "author": {
+    "name": "Local developer"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "\u5546\u4e1a\u7b56\u7565",
+    "shortDescription": "\u4ece\u5546\u4e1a\u6a21\u5f0f\u5230\u5b9a\u4ef7\u3001\u76c8\u5229\u548c\u5546\u4e1a\u8ba1\u5212\u7684\u8bc1\u636e\u9a71\u52a8\u5206\u6790\u3002",
+    "longDescription": "dsh-business connects customer value, revenue model, pricing architecture, channel economics, profitability, elevator pitches and business plans. It distinguishes facts, assumptions and missing evidence, and does not replace product delivery or growth execution.",
+    "developerName": "Local developer",
+    "category": "Productivity",
+    "capabilities": [
+      "Analyze",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "\u590d\u76d8\u8fd9\u4e2a\u5546\u4e1a\u6a21\u5f0f\uff0c\u6307\u51fa\u5ba2\u6237\u4ef7\u503c\u3001\u6536\u5165\u6765\u6e90\u3001\u5b9a\u4ef7\u3001\u6e20\u9053\u548c\u6210\u672c\u4e4b\u95f4\u7684\u7f3a\u53e3\u3002",
+      "\u68c0\u67e5\u5404\u6e20\u9053\u7684\u6807\u4ef7\u3001\u6210\u4ea4\u4ef7\u3001\u6210\u672c\u3001\u4f63\u91d1\u548c\u8d21\u732e\u6bdb\u5229\u7387\uff0c\u627e\u51fa\u4ef7\u683c\u51b2\u7a81\u548c\u4e8f\u635f\u6e20\u9053\u3002",
+      "\u751f\u6210 30 \u79d2\u300160 \u79d2\u548c 2 \u5206\u949f\u7684\u7535\u68af Pitch\uff0c\u53ea\u4f7f\u7528\u6211\u63d0\u4f9b\u7684\u4e8b\u5b9e\u548c\u8bc1\u636e\u3002",
+      "\u628a\u8fd9\u4e9b\u4fe1\u606f\u6574\u7406\u6210\u4e00\u4efd\u533a\u5206\u4e8b\u5b9e\u3001\u5047\u8bbe\u3001\u7f3a\u53e3\u548c\u4e0b\u4e00\u6b65\u7684\u5546\u4e1a\u8ba1\u5212\u3002"
+    ]
+  }
+}

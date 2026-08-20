@@ -1,0 +1,6 @@
+- insert:
+    - id: dsh-business
+      name: dsh-business
+      config:
+        defaultCurrency: "CNY"
+        defaultLanguage: "zh-CN"
