@@ -34,7 +34,7 @@ flowchart TB
     S -. "Sets commercial direction and guardrails" .-> A
     D --> R["Feedback<br/>Deals · renewals · revenue · cost"]
     R -->|Product iteration| B
-    R -->|New demand / opportunities| A
+    R -->|New discovery| A
 
     classDef strategy fill:#FFF4D6,stroke:#B7791F,color:#5C4500
     classDef stage fill:#E8F1FF,stroke:#3366CC,color:#173A7A

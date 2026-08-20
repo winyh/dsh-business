@@ -28,7 +28,7 @@ flowchart TB
     S -. "定义商业方向与边界" .-> A
     D --> R["反馈<br/>成交 · 续费 · 收入 · 成本"]
     R -->|产品迭代| B
-    R -->|新需求 / 新机会| A
+    R -->|新发现| A
 
     classDef strategy fill:#FFF4D6,stroke:#B7791F,color:#5C4500
     classDef stage fill:#E8F1FF,stroke:#3366CC,color:#173A7A
