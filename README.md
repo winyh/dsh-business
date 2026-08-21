@@ -8,6 +8,12 @@ Evidence-backed business strategy and commercialization tools for business model
 
 Public six-plugin collaboration contract: [SUITE.md](https://github.com/winyh/dsh-business/blob/main/SUITE.md).
 
+## 协作可靠与业务闭环
+
+`business_artifact_index` 扫描项目中的结构化工件，`business_artifact_review` 校验交接工件的稳定 ID、内容指纹和有效期；`business_loop_review` 检查新发现、产品、商业、增长、可发现性和销售反馈是否形成可执行闭环。
+
+`business_artifact_index` scans local structured artifacts, `business_artifact_review` validates handoff IDs, content fingerprints and freshness; `business_loop_review` checks whether discovery, product, commercial, growth, discoverability and sales feedback gates form an actionable loop.
+
 ## Plugin Positioning: Cross-Cutting Commercial Strategy Layer
 
 `dsh-business` is not the execution plugin for the monetization stage. It is the commercial strategy layer that spans demand, product, marketing and monetization, turning customer value, product capability, target segments and operating results into an explainable business model, pricing architecture and path to profitability.

@@ -6,6 +6,8 @@
 
 六插件公开协作契约：[SUITE.md](https://github.com/winyh/dsh-business/blob/main/SUITE.md)。
 
+`business_artifact_index` 扫描项目中的结构化工件，`business_artifact_review` 校验交接工件的稳定 ID、内容指纹和有效期；`business_loop_review` 检查六个阶段是否形成可执行闭环。
+
 ## 插件定位：贯穿主链路的商业策略层
 
 `dsh-business` 不是“变现”阶段的执行插件，而是贯穿需求、产品、营销和变现的商业策略层：把客户价值、产品能力、目标客群和经营结果，转成可解释的商业模式、定价与盈利路径。

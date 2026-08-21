@@ -1,4 +1,5 @@
 import type { BusinessCommercialHandoff, BusinessPricingReview, BusinessProfitabilityReview, CommercialOfferSummary } from './types.js'
+import { createArtifactId } from './artifacts.js'
 
 function money(value: number): string {
   return Number.isFinite(value) ? value.toFixed(2) : '缺失'
@@ -6,10 +7,6 @@ function money(value: number): string {
 
 function markdownList(values: string[]): string {
   return values.length > 0 ? values.map((value) => `- ${value}`).join('\n') : '- 无'
-}
-
-function artifactSlug(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'unknown'
 }
 
 export function buildCommercialHandoff(input: {
@@ -52,8 +49,15 @@ export function buildCommercialHandoff(input: {
   const nextActions = status === 'ready-for-review'
     ? ['由业务负责人或财务/销售授权人完成审批，不由本插件代替授权。', input.handoffTo === 'dsh-sales' ? '将本交接交给 dsh-sales 运行 sales_commercial_handoff_review。' : '将商业约束带回 dsh-product 的范围、包装和决策门。']
     : ['补齐价格底线、成本、盈利证据或风险处置，再进入正式报价、产品范围或渠道决策。']
+  const profitabilitySummary = input.profitability ? {
+    status: input.profitability.status,
+    revenue: input.profitability.totals.revenue,
+    contribution: input.profitability.totals.contribution,
+    profit: input.profitability.totals.profit,
+    profitMarginPct: input.profitability.totals.profitMarginPct,
+  } : undefined
   const generatedAt = new Date().toISOString()
-  const artifactId = `dsh-business-commercial-${artifactSlug(input.productName)}-${generatedAt.slice(0, 10)}`
+  const artifactId = createArtifactId({ artifactType: 'commercial-handoff', productName: input.productName, handoffTo: input.handoffTo, currency: input.pricing.currency, offers, profitabilitySummary, status, decision })
   const handoff: BusinessCommercialHandoff = {
     schemaVersion: '1.0',
     artifactId,
@@ -67,15 +71,7 @@ export function buildCommercialHandoff(input: {
     productName: input.productName,
     currency: input.pricing.currency,
     offers,
-    ...(input.profitability ? {
-      profitabilitySummary: {
-        status: input.profitability.status,
-        revenue: input.profitability.totals.revenue,
-        contribution: input.profitability.totals.contribution,
-        profit: input.profitability.totals.profit,
-        profitMarginPct: input.profitability.totals.profitMarginPct,
-      },
-    } : {}),
+    ...(profitabilitySummary ? { profitabilitySummary } : {}),
     risks,
     requiredApprovals,
     source: input.source,

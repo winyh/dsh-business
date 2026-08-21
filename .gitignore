@@ -8,3 +8,4 @@ coverage/
 __pycache__/
 *.pyc
 docs/
+.dsh-*-audit.jsonl

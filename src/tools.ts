@@ -9,6 +9,7 @@ import {
 } from './business.js'
 import { buildCommercialHandoff } from './commercial.js'
 import { auditBusinessNote, scanBusinessVault } from './context.js'
+import { appendArtifactAudit, attachArtifactMetadata, contentHash, indexArtifacts, reviewArtifact } from './artifacts.js'
 import { jsonValue, renderResult, resultEnvelope, resultSchema, type ResultLineage } from './output.js'
 import type { BusinessEvidence, BusinessFileSystemLike, BusinessPricingReview, BusinessProfitabilityReview, PricingOfferInput, ProfitabilityLineInput } from './types.js'
 
@@ -47,7 +48,7 @@ function wrapResult(value: unknown, options: { lineage?: ResultLineage[]; assump
   const warnings = typeof value === 'object' && value !== null && 'warnings' in value && Array.isArray(value.warnings)
     ? value.warnings.filter((warning): warning is string => typeof warning === 'string')
     : []
-  return resultEnvelope({ data: jsonValue(value), warnings, assumptions: options.assumptions, lineage: options.lineage ?? lineageFromValue(value), nextActions: options.nextActions })
+  return resultEnvelope({ data: jsonValue(attachArtifactMetadata(value, { staleAfterDays: 90 })), warnings, assumptions: options.assumptions, lineage: options.lineage ?? lineageFromValue(value), nextActions: options.nextActions })
 }
 
 function stringList(value: string | undefined, label: string): string[] {
@@ -218,7 +219,78 @@ export function registerBusinessTools(ctx: Context, config: BusinessConfig, fs: 
       const diff = { beforeLines: current.split(/\r?\n/).length, afterLines: args.content.split(/\r?\n/).length, changed: current !== args.content }
       if (!args.confirm) return wrapResult({ status: 'preview-only', path: args.path, applied: false, diff }, { nextActions: ['审阅 diff；确认后再次调用并设置 confirm=true。'] })
       await fs.writeText(target, args.content, { kind: 'replaceIfVersion', version: info.version }, exec.signal)
-      return wrapResult({ status: 'applied', path: args.path, applied: true, guarded: true, diff }, { lineage: [{ source: args.path }] })
+      let audit: unknown
+      try { audit = await appendArtifactAudit(fs, config.defaultRoot, { action: 'apply', path: args.path, beforeHash: contentHash(current), afterHash: contentHash(args.content), approved: true }, exec.signal) } catch (error) { audit = { status: 'audit-failed', warning: error instanceof Error ? error.message : String(error) } }
+      return wrapResult({ status: 'applied', path: args.path, applied: true, guarded: true, diff, audit }, { lineage: [{ source: args.path }] })
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'business_artifact_review',
+    description: 'Validate a business artifact before handing it to another plugin. Checks schema, stable ID, source hash and evidence freshness without changing files.',
+    parameters: {
+      artifactJson: { type: 'string', required: true, description: 'JSON returned by a plugin tool.' },
+      expectedType: { type: 'string', description: 'Optional expected artifactType.' },
+    },
+    output: businessOutput(config.maxResultChars),
+    async execute(args) {
+      let value: unknown
+      try { value = JSON.parse(args.artifactJson) as unknown } catch (error) { throw new Error(`artifactJson must be valid JSON: ${error instanceof Error ? error.message : String(error)}`) }
+      const data = typeof value === 'object' && value !== null && 'data' in value ? (value as { data: unknown }).data : value
+      const review = reviewArtifact(data, args.expectedType?.trim() || undefined)
+      return wrapResult({ artifactType: 'business-artifact-review', generatedAt: new Date().toISOString(), ...review }, { nextActions: review.nextActions })
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'business_loop_review',
+    description: 'Review the six-plugin business loop from supplied artifacts. It identifies missing gates and does not treat document existence as business validation.',
+    parameters: {
+      artifactsJson: { type: 'string', description: 'Optional JSON array of artifacts or result envelopes. If omitted, the plugin scans root for local artifact files.' },
+      root: { type: 'string', description: 'Optional project root to scan when artifactsJson is omitted.' },
+    },
+    output: businessOutput(config.maxResultChars),
+    async execute(args, exec) {
+      let artifacts: unknown[]
+      let index
+      if (args.artifactsJson?.trim()) {
+        let parsed: unknown
+        try { parsed = JSON.parse(args.artifactsJson) as unknown } catch (error) { throw new Error(`artifactsJson must be valid JSON: ${error instanceof Error ? error.message : String(error)}`) }
+        if (!Array.isArray(parsed)) throw new Error('artifactsJson must be a JSON array.')
+        artifacts = parsed.map((item) => typeof item === 'object' && item !== null && 'data' in item ? (item as { data: unknown }).data : item)
+      } else {
+        const root = args.root?.trim() || config.defaultRoot
+        await ensureInsideRoot(fs, config, root, exec.signal)
+        index = await indexArtifacts(fs, root, config.maxFiles, config.maxTextChars, exec.signal)
+        artifacts = index.artifacts.map((item) => item as unknown)
+      }
+      const reviews = index ? index.artifacts.map((item) => ({ status: item.status, warnings: item.warnings, issues: item.issues })) : artifacts.map((item) => reviewArtifact(item))
+      const types = new Set(artifacts.map((item) => typeof item === 'object' && item !== null && typeof (item as Record<string, unknown>).artifactType === 'string' ? (item as Record<string, unknown>).artifactType : ''))
+      const gates = [
+        { id: 'discovery', label: '新发现已形成机会交接', satisfied: types.has('opportunity-handoff') },
+        { id: 'product', label: '产品已经形成决策或销售交接', satisfied: types.has('product-sales-handoff') || types.has('decision-review') },
+        { id: 'commercial', label: '商业约束已经评估', satisfied: types.has('commercial-handoff') },
+        { id: 'measurement', label: '增长或可发现性已经绑定目标指标', satisfied: types.has('growth-attribution-review') || types.has('geo-growth-measurement-plan') },
+        { id: 'feedback', label: '销售/客户反馈已经回流', satisfied: types.has('sales-feedback-handoff') || types.has('product-feedback-closure') },
+      ]
+      const missing = gates.filter((gate) => !gate.satisfied)
+      const warnings = [...new Set(reviews.flatMap((review) => review.warnings))]
+      const nextActions = missing.length > 0 ? missing.map((gate) => `补齐：${gate.label}。`) : ['所有主要阶段都有结构化工件；进入 business_loop_review 的下一轮复盘，确认指标是否改善。']
+      const status = reviews.some((review) => review.status === 'blocked') ? 'blocked' : missing.length > 0 ? 'partial' : reviews.some((review) => review.status === 'stale') ? 'partial' : 'ready'
+      return wrapResult({ artifactType: 'business-loop-review', generatedAt: new Date().toISOString(), status, gates, missing, artifactCount: artifacts.length, indexed: index ? { root: index.root, scannedFiles: index.scannedFiles, warnings: index.warnings } : undefined, warnings, nextActions }, { nextActions })
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'business_artifact_index',
+    description: 'Scan a local project root for structured Markdown/JSON artifacts and report their IDs, types, freshness and validation status. Skips docs, hidden directories, node_modules and generated lib files.',
+    parameters: { root: { type: 'string', description: 'Optional project root under defaultRoot.' } },
+    output: businessOutput(config.maxResultChars),
+    async execute(args, exec) {
+      const root = args.root?.trim() || config.defaultRoot
+      await ensureInsideRoot(fs, config, root, exec.signal)
+      const index = await indexArtifacts(fs, root, config.maxFiles, config.maxTextChars, exec.signal)
+      return wrapResult({ artifactType: 'business-artifact-index', generatedAt: new Date().toISOString(), ...index, nextActions: index.artifacts.length > 0 ? ['把需要交接的最新 artifactId 传给对应插件的 *_artifact_review。'] : ['先运行 idea/product/business/geo/growth/sales 工具生成结构化工件。'] }, { lineage: [{ source: root }] })
     },
   }))
 
