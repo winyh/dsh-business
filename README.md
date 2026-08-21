@@ -56,6 +56,8 @@ flowchart TB
 | Monetization execution | Provide offer, discount, profit boundaries and sales strategy | [dsh-sales](../dsh-sales/README.md) |
 | Results feedback | Adjust strategy using close, loss, renewal and unit-economics evidence | [dsh-product](../dsh-product/README.md), [dsh-idea](../dsh-idea/README.md) |
 
+All business tool results use the shared result envelope with `ok`, `data`, `warnings`, `assumptions`, `lineage` and `nextActions`. The `lineage` field is populated from source-backed evidence when available, so commercial decisions can be traced back to the supplied material.
+
 ## Plugin Navigation
 
 | Plugin | Clear responsibility | Direct link |

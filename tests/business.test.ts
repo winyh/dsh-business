@@ -6,8 +6,15 @@ import {
   buildBusinessProfitabilityReview,
   buildElevatorPitch,
 } from '../src/business.js'
+import { resultEnvelope } from '../src/output.js'
 
 describe('business model review', () => {
+  it('uses the shared result envelope lineage field', () => {
+    const result = resultEnvelope({ data: { source: 'business-plan.md' }, lineage: [{ source: 'business-plan.md' }] })
+    expect(result.lineage[0]?.source).toBe('business-plan.md')
+    expect(result.nextActions).toEqual([])
+  })
+
   it('holds when the monetization loop is incomplete', () => {
     const review = buildBusinessModelReview({
       businessName: 'Example',

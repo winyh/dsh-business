@@ -1,5 +1,10 @@
 import type { JsonValue } from '@deepseek-ai/dsh-tools'
 
+export interface ResultLineage {
+  source: string
+  fields?: string[]
+}
+
 export const resultSchema = {
   type: 'object' as const,
   additionalProperties: false as const,
@@ -8,6 +13,7 @@ export const resultSchema = {
     data: { type: 'json' as const },
     warnings: { type: 'array' as const, items: { type: 'string' as const } },
     assumptions: { type: 'array' as const, items: { type: 'string' as const } },
+    lineage: { type: 'array' as const, items: { type: 'object' as const, additionalProperties: true as const } },
     nextActions: { type: 'array' as const, items: { type: 'string' as const } },
   },
 }
@@ -16,6 +22,7 @@ export function resultEnvelope<T extends JsonValue>(options: {
   data: T
   warnings?: string[]
   assumptions?: string[]
+  lineage?: ResultLineage[]
   nextActions?: string[]
 }) {
   return {
@@ -23,6 +30,7 @@ export function resultEnvelope<T extends JsonValue>(options: {
     data: options.data,
     warnings: [...(options.warnings ?? [])],
     assumptions: [...(options.assumptions ?? [])],
+    lineage: [...(options.lineage ?? [])] as unknown as Array<Record<string, JsonValue>>,
     nextActions: [...(options.nextActions ?? [])],
   }
 }

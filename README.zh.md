@@ -40,6 +40,8 @@ flowchart TB
 
 变现结果、价格异议、折扣、丢单和续约信号会反馈到 `dsh-product` 迭代产品，也会反馈到 `dsh-idea` 识别新需求。
 
+所有商业工具结果都使用统一结果包：`ok`、`data`、`warnings`、`assumptions`、`lineage` 和 `nextActions`。`lineage` 用来追溯价格、成本和商业判断的来源。
+
 ## 插件导航
 
 | 插件 | 分工 | 直接跳转 |

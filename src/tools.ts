@@ -7,7 +7,7 @@ import {
   buildBusinessProfitabilityReview,
   buildElevatorPitch,
 } from './business.js'
-import { jsonValue, renderResult, resultEnvelope, resultSchema } from './output.js'
+import { jsonValue, renderResult, resultEnvelope, resultSchema, type ResultLineage } from './output.js'
 import type { BusinessEvidence, PricingOfferInput, ProfitabilityLineInput } from './types.js'
 
 export interface BusinessConfig {
@@ -20,11 +20,28 @@ function businessOutput(maxChars: number) {
   return { schema: resultSchema, render: (_args: unknown, value: unknown) => renderResult(value, maxChars) }
 }
 
-function wrapResult(value: unknown, options: { assumptions?: string[]; nextActions?: string[] } = {}) {
+function lineageFromValue(value: unknown): ResultLineage[] {
+  const sources = new Set<string>()
+  if (typeof value === 'object' && value !== null) {
+    const record = value as Record<string, unknown>
+    if (typeof record.source === 'string' && record.source.trim()) sources.add(record.source.trim())
+    if (Array.isArray(record.evidence)) {
+      for (const item of record.evidence) {
+        if (typeof item === 'object' && item !== null && typeof (item as Record<string, unknown>).source === 'string') {
+          const source = String((item as Record<string, unknown>).source).trim()
+          if (source) sources.add(source)
+        }
+      }
+    }
+  }
+  return [...sources].map((source) => ({ source }))
+}
+
+function wrapResult(value: unknown, options: { lineage?: ResultLineage[]; assumptions?: string[]; nextActions?: string[] } = {}) {
   const warnings = typeof value === 'object' && value !== null && 'warnings' in value && Array.isArray(value.warnings)
     ? value.warnings.filter((warning): warning is string => typeof warning === 'string')
     : []
-  return resultEnvelope({ data: jsonValue(value), warnings, assumptions: options.assumptions, nextActions: options.nextActions })
+  return resultEnvelope({ data: jsonValue(value), warnings, assumptions: options.assumptions, lineage: options.lineage ?? lineageFromValue(value), nextActions: options.nextActions })
 }
 
 function stringList(value: string | undefined, label: string): string[] {
