@@ -30,7 +30,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src tests --max-warnings 0"
+    "lint": "eslint src tests --max-warnings 0",
+    "plugin:validate": "node scripts/validate-plugin.mjs"
   },
   "publishConfig": {
     "access": "public"
