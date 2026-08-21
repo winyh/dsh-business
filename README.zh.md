@@ -42,6 +42,8 @@ flowchart TB
 
 所有商业工具结果都使用统一结果包：`ok`、`data`、`warnings`、`assumptions`、`lineage` 和 `nextActions`。`lineage` 用来追溯价格、成本和商业判断的来源。
 
+`business_commercial_handoff` 会把定价复盘和可选的盈利复盘转成版本为 `1.0` 的 `commercial-handoff`，交给 `dsh-sales` 或 `dsh-product` 审查。它只报告计算事实和待审批项，不批准价格、折扣或收入承诺。
+
 ## 插件导航
 
 | 插件 | 分工 | 直接跳转 |

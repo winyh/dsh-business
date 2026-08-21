@@ -58,6 +58,8 @@ flowchart TB
 
 All business tool results use the shared result envelope with `ok`, `data`, `warnings`, `assumptions`, `lineage` and `nextActions`. The `lineage` field is populated from source-backed evidence when available, so commercial decisions can be traced back to the supplied material.
 
+`business_commercial_handoff` turns a pricing review and optional profitability review into a versioned `commercial-handoff` for `dsh-sales` or `dsh-product`. It reports calculated facts and required approvals only; it never approves a price, discount or revenue commitment.
+
 ## Plugin Navigation
 
 | Plugin | Clear responsibility | Direct link |

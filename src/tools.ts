@@ -7,8 +7,9 @@ import {
   buildBusinessProfitabilityReview,
   buildElevatorPitch,
 } from './business.js'
+import { buildCommercialHandoff } from './commercial.js'
 import { jsonValue, renderResult, resultEnvelope, resultSchema, type ResultLineage } from './output.js'
-import type { BusinessEvidence, PricingOfferInput, ProfitabilityLineInput } from './types.js'
+import type { BusinessEvidence, BusinessPricingReview, BusinessProfitabilityReview, PricingOfferInput, ProfitabilityLineInput } from './types.js'
 
 export interface BusinessConfig {
   defaultCurrency: string
@@ -139,6 +140,26 @@ function profitabilityLinesFromJson(value: string): ProfitabilityLineInput[] {
   })
 }
 
+function objectFromJson(value: string, label: string): Record<string, unknown> {
+  let parsed: unknown
+  try { parsed = JSON.parse(value) as unknown } catch (error) { throw new Error(`${label} must be valid JSON: ${error instanceof Error ? error.message : String(error)}`) }
+  const data = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && 'data' in parsed ? (parsed as { data: unknown }).data : parsed
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) throw new Error(`${label} must be a JSON object or result envelope.`)
+  return data as Record<string, unknown>
+}
+
+function pricingReviewFromJson(value: string): BusinessPricingReview {
+  const data = objectFromJson(value, 'pricingJson')
+  if (data.artifactType !== 'business-pricing-review' || !Array.isArray(data.offers)) throw new Error('pricingJson must contain a business_pricing_review result.')
+  return data as unknown as BusinessPricingReview
+}
+
+function profitabilityReviewFromJson(value: string): BusinessProfitabilityReview {
+  const data = objectFromJson(value, 'profitabilityJson')
+  if (data.artifactType !== 'business-profitability-review' || typeof data.totals !== 'object' || data.totals === null) throw new Error('profitabilityJson must contain a business_profitability_review result.')
+  return data as unknown as BusinessProfitabilityReview
+}
+
 export function registerBusinessTools(ctx: Context, config: BusinessConfig): void {
   ctx.tools.register(defineTool({
     name: 'business_model_review',
@@ -186,6 +207,29 @@ export function registerBusinessTools(ctx: Context, config: BusinessConfig): voi
     async execute(args) {
       const review = buildBusinessPricingReview({ productName: args.productName, currency: args.currency?.trim() || config.defaultCurrency, offers: offersFromJson(args.offers), priceGapWarningPct: args.priceGapWarningPct })
       return wrapResult(review, { assumptions: review.assumptions, nextActions: review.nextActions })
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'business_commercial_handoff',
+    description: 'Turn a business_pricing_review and optional business_profitability_review into a versioned commercial-handoff for dsh-sales or dsh-product. It preserves calculated facts and risks but never grants price approval, discount authority or a revenue commitment.',
+    parameters: {
+      productName: { type: 'string', required: true, description: 'Product or offer portfolio name.' },
+      handoffTo: { type: 'string', required: true, enum: ['dsh-sales', 'dsh-product'], description: 'Intended consumer of the commercial constraints.' },
+      pricingJson: { type: 'string', required: true, description: 'JSON returned by business_pricing_review, including its result envelope or data object.' },
+      profitabilityJson: { type: 'string', description: 'Optional JSON returned by business_profitability_review.' },
+      source: { type: 'string', description: 'Source artifact path or approval record path.' },
+    },
+    output: businessOutput(config.maxResultChars),
+    async execute(args) {
+      const handoff = buildCommercialHandoff({
+        productName: args.productName,
+        handoffTo: args.handoffTo as 'dsh-sales' | 'dsh-product',
+        pricing: pricingReviewFromJson(args.pricingJson),
+        profitability: args.profitabilityJson ? profitabilityReviewFromJson(args.profitabilityJson) : undefined,
+        source: args.source,
+      })
+      return wrapResult(handoff, { lineage: args.source ? [{ source: args.source }] : [], nextActions: handoff.nextActions })
     },
   }))
 

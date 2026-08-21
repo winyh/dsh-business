@@ -163,3 +163,40 @@ export interface BusinessPlan {
   nextActions: string[]
   markdown: string
 }
+
+export interface CommercialOfferSummary {
+  sku: string
+  channel: string
+  effectivePrice: number
+  minimumTransactionPrice?: number
+  unitCost: number
+  contributionPerUnit: number
+  contributionMarginPct: number
+  status: OfferStatus
+}
+
+export interface BusinessCommercialHandoff {
+  handoffVersion: '1.0'
+  artifactType: 'commercial-handoff'
+  handoffFrom: 'dsh-business'
+  handoffTo: 'dsh-sales' | 'dsh-product'
+  generatedAt: string
+  status: 'ready-for-review' | 'partial' | 'blocked'
+  decision: 'review' | 'hold'
+  productName: string
+  currency: string
+  offers: CommercialOfferSummary[]
+  profitabilitySummary?: {
+    status: ProfitabilityStatus
+    revenue: number
+    contribution: number
+    profit: number
+    profitMarginPct: number
+  }
+  risks: string[]
+  requiredApprovals: string[]
+  source?: string
+  warnings: string[]
+  nextActions: string[]
+  markdown: string
+}
