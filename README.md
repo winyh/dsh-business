@@ -6,6 +6,8 @@ English | [中文](./README.zh.md)
 
 Evidence-backed business strategy and commercialization tools for business models, pricing architecture, channel economics, profitability, elevator pitches and business plans.
 
+Public six-plugin collaboration contract: [SUITE.md](https://github.com/winyh/dsh-business/blob/main/SUITE.md).
+
 ## Plugin Positioning: Cross-Cutting Commercial Strategy Layer
 
 `dsh-business` is not the execution plugin for the monetization stage. It is the commercial strategy layer that spans demand, product, marketing and monetization, turning customer value, product capability, target segments and operating results into an explainable business model, pricing architecture and path to profitability.

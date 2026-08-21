@@ -23,4 +23,4 @@ jobs:
       - run: pnpm test
       - run: pnpm run build
       - run: pnpm run plugin:validate
-      - run: pnpm pack --dry-run
+      - run: pnpm run plugin:pack:validate

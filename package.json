@@ -16,6 +16,7 @@
     "cordis.patch.yml",
     "README.md",
     "README.zh.md",
+    "SUITE.md",
     "LICENSE",
     "SECURITY.md",
     "PLAN.md",
@@ -31,7 +32,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src tests --max-warnings 0",
-    "plugin:validate": "node scripts/validate-plugin.mjs"
+    "plugin:validate": "node scripts/validate-plugin.mjs",
+    "plugin:pack:validate": "node scripts/validate-package.mjs"
   },
   "publishConfig": {
     "access": "public"
@@ -56,6 +58,7 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-fs": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-tools": "^0.1.0-rc.6"
   },
   "devDependencies": {
@@ -63,6 +66,7 @@
     "@deepseek-ai/dsh-agent": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-brand": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-code-runtime": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-fs": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-invariants": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-llm": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-sandbox": "^0.1.0-rc.6",

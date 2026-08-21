@@ -8,6 +8,10 @@ function markdownList(values: string[]): string {
   return values.length > 0 ? values.map((value) => `- ${value}`).join('\n') : '- 无'
 }
 
+function artifactSlug(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'unknown'
+}
+
 export function buildCommercialHandoff(input: {
   productName: string
   handoffTo: 'dsh-sales' | 'dsh-product'
@@ -49,7 +53,10 @@ export function buildCommercialHandoff(input: {
     ? ['由业务负责人或财务/销售授权人完成审批，不由本插件代替授权。', input.handoffTo === 'dsh-sales' ? '将本交接交给 dsh-sales 运行 sales_commercial_handoff_review。' : '将商业约束带回 dsh-product 的范围、包装和决策门。']
     : ['补齐价格底线、成本、盈利证据或风险处置，再进入正式报价、产品范围或渠道决策。']
   const generatedAt = new Date().toISOString()
+  const artifactId = `dsh-business-commercial-${artifactSlug(input.productName)}-${generatedAt.slice(0, 10)}`
   const handoff: BusinessCommercialHandoff = {
+    schemaVersion: '1.0',
+    artifactId,
     handoffVersion: '1.0',
     artifactType: 'commercial-handoff',
     handoffFrom: 'dsh-business',
@@ -78,6 +85,8 @@ export function buildCommercialHandoff(input: {
   }
   handoff.markdown = [
     '---',
+    'schemaVersion: "1.0"',
+    `artifactId: ${JSON.stringify(artifactId)}`,
     'handoffVersion: "1.0"',
     'artifactType: commercial-handoff',
     'handoffFrom: dsh-business',

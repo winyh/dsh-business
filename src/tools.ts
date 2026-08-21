@@ -8,13 +8,18 @@ import {
   buildElevatorPitch,
 } from './business.js'
 import { buildCommercialHandoff } from './commercial.js'
+import { auditBusinessNote, scanBusinessVault } from './context.js'
 import { jsonValue, renderResult, resultEnvelope, resultSchema, type ResultLineage } from './output.js'
-import type { BusinessEvidence, BusinessPricingReview, BusinessProfitabilityReview, PricingOfferInput, ProfitabilityLineInput } from './types.js'
+import type { BusinessEvidence, BusinessFileSystemLike, BusinessPricingReview, BusinessProfitabilityReview, PricingOfferInput, ProfitabilityLineInput } from './types.js'
 
 export interface BusinessConfig {
+  defaultRoot: string
   defaultCurrency: string
   defaultLanguage: string
   maxResultChars: number
+  maxFiles: number
+  maxFileBytes: number
+  maxTextChars: number
 }
 
 function businessOutput(maxChars: number) {
@@ -160,7 +165,63 @@ function profitabilityReviewFromJson(value: string): BusinessProfitabilityReview
   return data as unknown as BusinessProfitabilityReview
 }
 
-export function registerBusinessTools(ctx: Context, config: BusinessConfig): void {
+async function ensureInsideRoot(fs: BusinessFileSystemLike, config: BusinessConfig, path: string, signal?: AbortSignal): Promise<void> {
+  const root = await fs.resolve(config.defaultRoot, { signal })
+  const target = await fs.resolve(path, { signal })
+  if (!fs.contains(root, target)) throw new Error(`Path is outside configured defaultRoot: ${path}`)
+}
+
+export function registerBusinessTools(ctx: Context, config: BusinessConfig, fs: BusinessFileSystemLike): void {
+  ctx.tools.register(defineTool({
+    name: 'business_onboarding',
+    description: 'Run a read-only business readiness scan over local Markdown, CSV and JSON evidence. It identifies commercial inputs and missing source/owner metadata before calculation.',
+    parameters: { root: { type: 'string', description: 'Optional directory under defaultRoot.' } },
+    output: businessOutput(config.maxResultChars),
+    async execute(args, exec) {
+      const root = args.root?.trim() || config.defaultRoot
+      await ensureInsideRoot(fs, config, root, exec.signal)
+      const scan = await scanBusinessVault(fs, config, root, exec.signal)
+      const status = scan.supportedNotes > 0 || scan.dataFiles.length > 0 ? scan.errors.length > 0 ? 'partial' : 'ready' : 'blocked'
+      const result = { artifactType: 'business-onboarding', generatedAt: new Date().toISOString(), root, status, scan, warnings: scan.errors, nextActions: status === 'ready' ? ['运行 business_audit_note 检查关键材料，再运行 business_pricing_review/business_profitability_review。'] : ['补充产品、价格、成本或销售反馈资料，再运行 onboarding。'] }
+      return wrapResult(result, { lineage: [{ source: root }], nextActions: result.nextActions })
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'business_audit_note',
+    description: 'Audit one local business Markdown note for artifact type, status, owner, updated date, source and approval boundary. It never treats a complete template as approval.',
+    parameters: { path: { type: 'string', required: true, description: 'Business Markdown artifact under defaultRoot.' } },
+    output: businessOutput(config.maxResultChars),
+    async execute(args, exec) {
+      await ensureInsideRoot(fs, config, args.path, exec.signal)
+      const target = await fs.resolve(args.path, { signal: exec.signal })
+      const info = await fs.stat(target, exec.signal)
+      if (!info || info.type !== 'file') throw new Error(`File not found: ${args.path}`)
+      const content = await fs.readText(target, exec.signal)
+      if (content.length > config.maxTextChars) throw new Error(`File exceeds maxTextChars (${config.maxTextChars})`)
+      const result = auditBusinessNote(args.path, content)
+      return wrapResult(result, { lineage: [{ source: args.path }], nextActions: result.nextActions })
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'business_apply_artifact',
+    description: 'Preview or apply a business Markdown artifact under defaultRoot using explicit confirmation and a version guard.',
+    parameters: { path: { type: 'string', required: true }, content: { type: 'string', required: true }, confirm: { type: 'boolean', required: true, description: 'false previews only; true applies the guarded write.' } },
+    output: businessOutput(config.maxResultChars),
+    async execute(args, exec) {
+      await ensureInsideRoot(fs, config, args.path, exec.signal)
+      const target = await fs.resolve(args.path, { signal: exec.signal })
+      const info = await fs.stat(target, exec.signal)
+      if (!info || info.type !== 'file') throw new Error(`File not found: ${args.path}`)
+      const current = await fs.readText(target, exec.signal)
+      const diff = { beforeLines: current.split(/\r?\n/).length, afterLines: args.content.split(/\r?\n/).length, changed: current !== args.content }
+      if (!args.confirm) return wrapResult({ status: 'preview-only', path: args.path, applied: false, diff }, { nextActions: ['审阅 diff；确认后再次调用并设置 confirm=true。'] })
+      await fs.writeText(target, args.content, { kind: 'replaceIfVersion', version: info.version }, exec.signal)
+      return wrapResult({ status: 'applied', path: args.path, applied: true, guarded: true, diff }, { lineage: [{ source: args.path }] })
+    },
+  }))
+
   ctx.tools.register(defineTool({
     name: 'business_model_review',
     description: 'Review a business model across customer, value proposition, revenue streams, pricing model, channels, cost drivers and evidence. It distinguishes a missing business case from a disproved one.',

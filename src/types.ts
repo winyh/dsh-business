@@ -176,6 +176,8 @@ export interface CommercialOfferSummary {
 }
 
 export interface BusinessCommercialHandoff {
+  schemaVersion: '1.0'
+  artifactId: string
   handoffVersion: '1.0'
   artifactType: 'commercial-handoff'
   handoffFrom: 'dsh-business'
@@ -199,4 +201,22 @@ export interface BusinessCommercialHandoff {
   warnings: string[]
   nextActions: string[]
   markdown: string
+}
+
+export interface BusinessFileSystemLike {
+  resolve(path: string, options?: { signal?: AbortSignal }): Promise<unknown>
+  contains(parent: unknown, child: unknown): boolean
+  stat(target: unknown, signal?: AbortSignal): Promise<{ type: string; size?: number; version: unknown } | undefined>
+  readText(target: unknown, signal?: AbortSignal): Promise<string>
+  listDir(target: unknown, signal?: AbortSignal): Promise<Array<{ name: string; type: string; target: unknown; size?: number }>>
+  writeText(target: unknown, content: string, expected?: unknown, signal?: AbortSignal): Promise<unknown>
+}
+
+export interface BusinessFileRecord {
+  path: string
+  type: string
+  size: number
+  artifactType?: string
+  status: 'supported' | 'skipped' | 'error'
+  reasons: string[]
 }

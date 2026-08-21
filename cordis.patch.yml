@@ -2,5 +2,10 @@
     - id: dsh-business
       name: dsh-business
       config:
+        defaultRoot: "."
         defaultCurrency: "CNY"
         defaultLanguage: "zh-CN"
+        maxFiles: 500
+        maxFileBytes: 1048576
+        maxTextChars: 180000
+        maxResultChars: 50000
