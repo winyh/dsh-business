@@ -37,7 +37,7 @@ function findPackMetadata(text) {
 }
 const pack = findPackMetadata(output)
 const paths = new Set(pack.files.map((file) => file.path))
-const required = ['.codex-plugin/plugin.json', 'lib/index.mjs', 'lib/index.d.mts', 'cordis.patch.yml']
+const required = ['.codex-plugin/plugin.json', 'lib/index.mjs', 'lib/index.d.mts', 'cordis.patch.yml', 'references/closed-loop.md']
 if (manifest.skills) required.push('skills/')
 for (const path of required) {
   const present = path.endsWith('/') ? [...paths].some((item) => item.startsWith(path)) : paths.has(path)

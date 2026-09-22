@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
+import { integrityHash, validDate } from './artifact-integrity.js'
 
 export const artifactDomain = 'dsh-business'
 
@@ -14,6 +15,7 @@ export interface ArtifactFileSystem {
 }
 
 export interface ArtifactIndexItem {
+  value?: Record<string, unknown>
   path: string
   artifactId?: string
   artifactType?: string
@@ -68,20 +70,26 @@ export function attachArtifactMetadata<T>(value: T, options: { staleAfterDays?: 
   if (!value || typeof value !== 'object' || Array.isArray(value)) return value
   const record = value as Record<string, unknown>
   if (typeof record.artifactType !== 'string' || !record.artifactType.trim()) return value
+  // Never silently re-seal an existing versioned artifact, including altered input.
+  if (record.hashVersion === 'sha256-v2') return value
   const generatedAt = typeof record.generatedAt === 'string' && record.generatedAt ? record.generatedAt : new Date().toISOString()
-  const metadata: Record<string, unknown> = {
+  const result: Record<string, unknown> = {
+    ...record,
     schemaVersion: typeof record.schemaVersion === 'string' ? record.schemaVersion : '1.0',
-    artifactId: typeof record.artifactId === 'string' && record.artifactId ? record.artifactId : createArtifactId({ ...record, generatedAt: undefined }),
+    artifactId: typeof record.artifactId === 'string' && record.artifactId ? record.artifactId : createArtifactId(record),
     generatedAt,
     capturedAt: typeof record.capturedAt === 'string' ? record.capturedAt : generatedAt,
     revision: typeof record.revision === 'number' ? record.revision : 1,
+    hashVersion: 'sha256-v2',
   }
-  if (options.sourceHash) metadata.sourceHash = options.sourceHash
-  else if (typeof record.sourceHash === 'string' && record.sourceHash) metadata.sourceHash = record.sourceHash
-  metadata.contentHash = contentHash(record)
-  if (options.staleAfterDays !== undefined) metadata.staleAfter = typeof record.staleAfter === 'string' ? record.staleAfter : addDays(generatedAt, options.staleAfterDays)
-  else if (typeof record.staleAfter === 'string') metadata.staleAfter = record.staleAfter
-  return { ...record, ...metadata } as T
+  if (options.sourceHash) result.sourceHash = options.sourceHash
+  if (options.staleAfterDays !== undefined && !record.staleAfter && validDate(generatedAt)) {
+    result.staleAfter = addDays(generatedAt, options.staleAfterDays)
+  }
+  // Match the JSON actually sent across the tool boundary (omit undefined fields).
+  const serialized = JSON.parse(JSON.stringify(result)) as Record<string, unknown>
+  serialized.contentHash = integrityHash(serialized)
+  return serialized as T
 }
 
 export function reviewArtifact(value: unknown, expectedType?: string): ArtifactReview {
@@ -98,13 +106,23 @@ export function reviewArtifact(value: unknown, expectedType?: string): ArtifactR
   if (!artifactId?.trim()) issues.push('缺少稳定 artifactId。')
   if (!artifactType?.trim()) issues.push('缺少 artifactType。')
   if (expectedType && artifactType !== expectedType) issues.push(`artifactType 必须为 ${expectedType}。`)
-  if (typeof record.generatedAt !== 'string' || !record.generatedAt.trim()) issues.push('缺少 generatedAt。')
-  if (!artifactContentHash) warnings.push('缺少 contentHash，无法判断工件内容是否发生变化。')
+  if (!validDate(record.generatedAt)) issues.push('generatedAt 必须是有效 ISO 日期或时间。')
+  else if (Date.parse(record.generatedAt) > Date.now() + 300_000) issues.push('generatedAt 不能是未来时间。')
+  if (record.staleAfter !== undefined && !validDate(record.staleAfter)) issues.push('staleAfter 必须是有效 ISO 日期或时间。')
+  if (validDate(staleAfter) && validDate(record.generatedAt) && Date.parse(staleAfter) < Date.parse(record.generatedAt)) issues.push('staleAfter 不能早于 generatedAt。')
+  if (record.hashVersion === 'sha256-v2') {
+    if (!artifactContentHash || artifactContentHash !== integrityHash(record)) issues.push('contentHash 不匹配：内容已变化，请重新生成工件并重新交接。')
+  } else if (record.hashVersion !== undefined) {
+    issues.push('不支持的 hashVersion。')
+  } else {
+    warnings.push('旧版或缺少内容校验版本；请由来源插件重新生成，不能自动视为已验证。')
+  }
   if (!staleAfter) warnings.push('缺少 staleAfter，无法自动判断证据是否过期。')
-  const stale = staleAfter ? Date.parse(staleAfter) <= Date.now() : false
+  const stale = validDate(staleAfter) && Date.parse(staleAfter) <= Date.now()
   if (stale) warnings.push(`工件已过期：${staleAfter}。`)
   const status = issues.length > 0 ? 'blocked' : stale ? 'stale' : warnings.length > 0 ? 'partial' : 'ready'
-  return { status, issues, warnings, artifactId, artifactType, sourceHash, contentHash: artifactContentHash, staleAfter, nextActions: status === 'ready' ? ['可以交给目标插件继续处理，并保留 artifactId 作为回溯入口。'] : ['补齐缺失的工件元数据后再进入下一阶段。'] }
+  return { status, issues, warnings, artifactId, artifactType, sourceHash, contentHash: artifactContentHash, staleAfter,
+    nextActions: status === 'ready' ? ['格式、内容一致性和有效期检查通过；仍需由接收插件审查业务证据与授权边界。'] : ['回到来源插件补齐或更新工件，再交接；不要直接修改 hash 或有效期。'] }
 }
 
 function scalar(value: string): unknown {
@@ -123,9 +141,8 @@ function candidatesFromText(path: string, content: string): unknown[] {
     for (const line of lines) {
       try {
         const parsed: unknown = JSON.parse(line)
-        const data = parsed && typeof parsed === 'object' && !Array.isArray(parsed) && 'data' in parsed ? (parsed as { data: unknown }).data : parsed
-        if (Array.isArray(data)) values.push(...data)
-        else values.push(data)
+        if (Array.isArray(parsed)) values.push(...parsed)
+        else values.push(parsed)
       } catch { /* index skips malformed records and reports the file warning */ }
     }
     return values
@@ -142,7 +159,7 @@ function candidatesFromText(path: string, content: string): unknown[] {
   return frontmatter.artifactType ? [frontmatter] : []
 }
 
-export async function indexArtifacts(fs: ArtifactFileSystem, root: string, maxFiles: number, maxTextChars: number, signal?: AbortSignal): Promise<{ root: string; scannedFiles: number; artifacts: ArtifactIndexItem[]; warnings: string[] }> {
+export async function indexArtifacts(fs: ArtifactFileSystem, root: string, maxFiles: number, maxTextChars: number, signal?: AbortSignal, includeValues = false): Promise<{ root: string; scannedFiles: number; artifacts: ArtifactIndexItem[]; warnings: string[] }> {
   const artifacts: ArtifactIndexItem[] = []
   const warnings: string[] = []
   let scannedFiles = 0
@@ -162,9 +179,15 @@ export async function indexArtifacts(fs: ArtifactFileSystem, root: string, maxFi
       try {
         const values = candidatesFromText(child, await fs.readText(entry.target, signal))
         for (const value of values) {
-          const review = reviewArtifact(value)
-          const record = value && typeof value === 'object' ? value as Record<string, unknown> : {}
-          artifacts.push({ path: child, artifactId: typeof record.artifactId === 'string' ? record.artifactId : undefined, artifactType: typeof record.artifactType === 'string' ? record.artifactType : undefined, generatedAt: typeof record.generatedAt === 'string' ? record.generatedAt : undefined, staleAfter: typeof record.staleAfter === 'string' ? record.staleAfter : undefined, status: review.status, issues: review.issues, warnings: review.warnings })
+          const envelope = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+          const data = Object.hasOwn(envelope, 'data') ? envelope.data : value
+          const review = reviewArtifact(data)
+          if (Object.hasOwn(envelope, 'data') && envelope.ok !== true) {
+            review.status = 'blocked'
+            review.issues.push('来源工具结果失败。')
+          }
+          const record = data && typeof data === 'object' && !Array.isArray(data) ? data as Record<string, unknown> : {}
+          artifacts.push({ ...(includeValues ? { value: envelope } : {}), path: child, artifactId: typeof record.artifactId === 'string' ? record.artifactId : undefined, artifactType: typeof record.artifactType === 'string' ? record.artifactType : undefined, generatedAt: typeof record.generatedAt === 'string' ? record.generatedAt : undefined, staleAfter: typeof record.staleAfter === 'string' ? record.staleAfter : undefined, status: review.status, issues: review.issues, warnings: review.warnings })
         }
       } catch (error) { warnings.push(`${child}: ${error instanceof Error ? error.message : String(error)}`) }
     }

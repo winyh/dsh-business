@@ -30,6 +30,28 @@
 5. `dsh-sales` 负责人工销售执行的判断与复盘，不写 CRM、不发送消息、不替代折扣审批。
 6. 成交、输单、续费、内容表现和增长数据形成反馈：产品问题回 `dsh-product`，新的用户问题、市场变化或经营机会统一回 `dsh-idea`，统一称为“新发现”。
 
+## 可执行的接收与反馈闭环
+
+每个插件现在都有 `*_handoff_receive`。接收时明确同一事项的 `initiativeId`、实际负责人、下一动作和 ISO 截止日期；回执绑定来源 `artifactId` 和 `contentHash`。接收回执不授予批准，也不声明任务完成。
+
+| 环节 | 可执行入口 | 不能跳过的判断 |
+| --- | --- | --- |
+| 新发现 | `idea_handoff_receive` → `idea_evidence_score` | 销售原因只转为未验证信号，不伪造访谈或需求证明 |
+| 商业约束 | `business_handoff_receive` → 商业审查/商业交接 | 横向引用不接管产品或销售职责，报价仍需授权 |
+| 产品交付 | `product_handoff_receive` → 产品工具 | 机会、商业约束和反馈分别处理，不混成产品承诺 |
+| 内容可发现性 | `product_discoverability_handoff` → `geo_handoff_receive` | 只使用允许公开的事实，保留禁止承诺与目标指标 |
+| 增长测量 | `growth_handoff_receive` → `growth_attribution_review` | 用实际观测核对基线、窗口、来源、单位和重复记录 |
+| 销售回流 | `sales_feedback_handoff` → 产品/新发现接收 | 保留原反馈 ID，不把原因频次当作因果 |
+| 处理结果回传 | `product_feedback_close` → `sales_handoff_receive` | 复验记录必须晚于原反馈，并绑定原内容版本 |
+
+`business_loop_review` 接收同一事项的原工件与回执，检查七个关口；仅有文档类型不再算闭环。扫描方式需要完整 JSON/JSONL，而不是仅有 Markdown frontmatter。重复材料只计一次，冲突版本必须澄清。只有观察窗口已结束、基线与单位可比较时，增长才可报告 measured；负向结果同样保留。
+
+`coordinationClosed=true` 只表示协作与反馈链闭合，不等于业务成功。`businessImpact=observed-not-attributed` 表示观察到了指标变化，不构成因果归因。新的市场问题才回到新发现，不必为了凑流程编造问题。
+
+新版 `sha256-v2` 校验内容一致性，不验证来源身份或事实真伪。旧版工件需要在来源插件重新核验和生成；不能通过修改 hash、日期或状态升级其可信度。
+
+公开操作步骤和各插件接收类型见各自的 `references/closed-loop.md`。同时检出并构建六个同级仓库后，在本仓库运行 `node scripts/validate-suite.mjs` 可用模拟数据串联真实 DSH 工具；不调用模型、网络或用户 profile。
+
 ## 共同结果与工件格式
 
 工具结果使用统一外层：
@@ -57,5 +79,7 @@
 - 不增加第七个插件：公共协作契约由本文件和各插件的公开类型/结果结构承载。
 
 ## English summary
+
+Each plugin now has an owned, dated `*_handoff_receive` receipt, bound to one initiative and the exact upstream content version. Receipts acknowledge review assignments, not approvals or completed work. The business loop requires actual growth observations and a source-linked product recheck acknowledged by sales; document presence is insufficient. Content checksums detect changes, not false evidence or forged identities. See each plugin's `references/closed-loop.md` for its locally maintained contract.
 
 The six plugins form one operating loop: **new discovery (new need, new plan, or another external change) → opportunity discovery → product delivery → discoverability and growth → monetization execution → feedback**. `dsh-business` is the cross-cutting commercial strategy layer. Each handoff is evidence-bound, versioned and guarded; plugins do not impersonate approvals, CRM writes, customer outreach or external submissions. The `docs/` directories remain private and are excluded from Git and published packages.

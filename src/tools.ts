@@ -1,5 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import { handoffParameters, receiveHandoff } from './handoff-receive.js'
+import { reviewLoopArtifacts } from './loop-review.js'
 import {
   buildBusinessModelReview,
   buildBusinessPlan,
@@ -226,6 +228,18 @@ export function registerBusinessTools(ctx: Context, config: BusinessConfig, fs: 
   }))
 
   ctx.tools.register(defineTool({
+    name: 'business_handoff_receive',
+    description: 'Receive a supported upstream artifact with integrity, routing and evidence checks. Produce an owned, dated receipt for one initiative; acceptance is not approval or task completion. Read-only.',
+    parameters: handoffParameters,
+    output: businessOutput(config.maxResultChars),
+    async execute(args, exec) {
+      exec.signal.throwIfAborted()
+      const receipt = receiveHandoff(JSON.parse(args.artifactJson) as unknown, args)
+      return wrapResult(receipt, { nextActions: receipt.nextActions })
+    },
+  }))
+
+  ctx.tools.register(defineTool({
     name: 'business_artifact_review',
     description: 'Validate a business artifact before handing it to another plugin. Checks schema, stable ID, source hash and evidence freshness without changing files.',
     parameters: {
@@ -246,6 +260,7 @@ export function registerBusinessTools(ctx: Context, config: BusinessConfig, fs: 
     name: 'business_loop_review',
     description: 'Review the six-plugin business loop from supplied artifacts. It identifies missing gates and does not treat document existence as business validation.',
     parameters: {
+      initiativeId: { type: 'string', required: true, description: 'Shared business initiative ID for all receiving receipts.' },
       artifactsJson: { type: 'string', description: 'Optional JSON array of artifacts or result envelopes. If omitted, the plugin scans root for local artifact files.' },
       root: { type: 'string', description: 'Optional project root to scan when artifactsJson is omitted.' },
     },
@@ -257,27 +272,16 @@ export function registerBusinessTools(ctx: Context, config: BusinessConfig, fs: 
         let parsed: unknown
         try { parsed = JSON.parse(args.artifactsJson) as unknown } catch (error) { throw new Error(`artifactsJson must be valid JSON: ${error instanceof Error ? error.message : String(error)}`) }
         if (!Array.isArray(parsed)) throw new Error('artifactsJson must be a JSON array.')
-        artifacts = parsed.map((item) => typeof item === 'object' && item !== null && 'data' in item ? (item as { data: unknown }).data : item)
+        artifacts = parsed
       } else {
         const root = args.root?.trim() || config.defaultRoot
         await ensureInsideRoot(fs, config, root, exec.signal)
-        index = await indexArtifacts(fs, root, config.maxFiles, config.maxTextChars, exec.signal)
-        artifacts = index.artifacts.map((item) => item as unknown)
+        index = await indexArtifacts(fs, root, config.maxFiles, config.maxTextChars, exec.signal, true)
+        artifacts = index.artifacts.map((item) => item.value ?? item)
       }
-      const reviews = index ? index.artifacts.map((item) => ({ status: item.status, warnings: item.warnings, issues: item.issues })) : artifacts.map((item) => reviewArtifact(item))
-      const types = new Set(artifacts.map((item) => typeof item === 'object' && item !== null && typeof (item as Record<string, unknown>).artifactType === 'string' ? (item as Record<string, unknown>).artifactType : ''))
-      const gates = [
-        { id: 'discovery', label: '新发现已形成机会交接', satisfied: types.has('opportunity-handoff') },
-        { id: 'product', label: '产品已经形成决策或销售交接', satisfied: types.has('product-sales-handoff') || types.has('decision-review') },
-        { id: 'commercial', label: '商业约束已经评估', satisfied: types.has('commercial-handoff') },
-        { id: 'measurement', label: '增长或可发现性已经绑定目标指标', satisfied: types.has('growth-attribution-review') || types.has('geo-growth-measurement-plan') },
-        { id: 'feedback', label: '销售/客户反馈已经回流', satisfied: types.has('sales-feedback-handoff') || types.has('product-feedback-closure') },
-      ]
-      const missing = gates.filter((gate) => !gate.satisfied)
-      const warnings = [...new Set(reviews.flatMap((review) => review.warnings))]
-      const nextActions = missing.length > 0 ? missing.map((gate) => `补齐：${gate.label}。`) : ['所有主要阶段都有结构化工件；进入 business_loop_review 的下一轮复盘，确认指标是否改善。']
-      const status = reviews.some((review) => review.status === 'blocked') ? 'blocked' : missing.length > 0 ? 'partial' : reviews.some((review) => review.status === 'stale') ? 'partial' : 'ready'
-      return wrapResult({ artifactType: 'business-loop-review', generatedAt: new Date().toISOString(), status, gates, missing, artifactCount: artifacts.length, indexed: index ? { root: index.root, scannedFiles: index.scannedFiles, warnings: index.warnings } : undefined, warnings, nextActions }, { nextActions })
+      const result = reviewLoopArtifacts(artifacts, args.initiativeId)
+      if (index) result.warnings.push(...index.warnings)
+      return wrapResult(result, { nextActions: result.nextActions })
     },
   }))
 

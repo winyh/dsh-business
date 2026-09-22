@@ -10,6 +10,8 @@ Public six-plugin collaboration contract: [SUITE.md](https://github.com/winyh/ds
 
 ## DSH compatibility and installation
 
+Closed-loop handoff guide: [owned receipts, evidence gates and feedback](./references/closed-loop.md). Start cross-plugin work with `business_handoff_receive`; an accepted receipt is not approval or completion.
+
 Tested against DeepSeek Harness **0.1.5-rc.2**, the npm `latest` channel checked on 2026-09-22, with Cordis 4.0.2. Node.js must satisfy `^22.19.0 || >=24.0.0`. DSH peer packages are pinned to the tested version; other release channels need a fresh compatibility check.
 
 ```sh
