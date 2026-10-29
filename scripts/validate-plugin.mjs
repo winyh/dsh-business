@@ -29,6 +29,7 @@ if (!Array.isArray(manifest.interface?.capabilities) || manifest.interface.capab
 if (pkg.main !== 'lib/index.mjs') fail(`package main must be lib/index.mjs, got ${pkg.main}`)
 if (pkg.types !== 'lib/index.d.mts') fail(`package types must be lib/index.d.mts, got ${pkg.types}`)
 if (pkg.type !== 'module') fail('DSH requires an ESM plugin package')
+if (pkg.scripts?.prepare) fail('GitHub installation must use the committed build without a prepare script')
 if (pkg.dsh?.bundle?.patch !== './cordis.patch.yml') fail('DSH bundle patch declaration is missing or invalid')
 if (pkg.exports?.['.']?.default !== './lib/index.mjs') fail('DSH package export must resolve to the built entry')
 for (const dependency of ['@deepseek-ai/dsh-tools', '@deepseek-ai/dsh-fs']) {
