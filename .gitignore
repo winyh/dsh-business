@@ -1,5 +1,7 @@
 node_modules/
-lib/
+lib/*
+!lib/index.mjs
+!lib/index.d.mts
 coverage/
 .env
 .DS_Store

@@ -24,7 +24,7 @@ dsh web
 
 Install into the profile you actually launch: `web` for `dsh web`, or replace it consistently with your custom profile name. Installing into `default` does not enable the plugin in `web`. Restart the running profile after an update.
 
-A GitHub source installation uses `prepare` to build the entry point. If pnpm blocks it, add the exact package key printed by pnpm to that profile's `pnpm-workspace.yaml` under `allowBuilds` and repeat the installation after reviewing the source. Pin a reviewed Git commit for reproducibility. A built tarball from `pnpm pack` can instead be installed with `dsh plugin --profile web add ./package.tgz`.
+GitHub installations use the committed prebuilt entry point. For reproducible deployments, pin a reviewed Git commit. Maintainers must run `pnpm run build` and commit the generated `lib/index.mjs` and `lib/index.d.mts` when source changes. A built tarball from `pnpm pack` can also be installed with `dsh plugin --profile web add ./package.tgz`.
 
 The profile supplies `tools` and `fs`. Private `docs/` files remain excluded from Git and package contents.
 

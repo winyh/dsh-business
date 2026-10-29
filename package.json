@@ -27,7 +27,6 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "prepare": "pnpm run build",
     "dev": "tsdown --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

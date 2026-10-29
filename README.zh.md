@@ -24,7 +24,7 @@ dsh web
 
 插件应安装到实际启动的 profile：使用 `dsh web` 时安装到 `web`；自定义 profile 则统一替换命令中的名称。安装到 `default` 不会在 `web` 中启用。更新后重启正在运行的 profile。
 
-GitHub 源码安装通过 `prepare` 构建入口。如果 pnpm 阻止构建，请先审阅代码，再将它提示的准确包名加入该 profile 的 `pnpm-workspace.yaml` 的 `allowBuilds`，然后重试。需要可重复部署时固定已审阅的 Git 提交。也可以先运行 `pnpm pack`，再使用 `dsh plugin --profile web add ./package.tgz` 安装已构建的包。
+GitHub 安装使用仓库中已构建的入口文件。需要可重复部署时固定已审阅的 Git 提交。维护者修改源码后应运行 `pnpm run build`，并提交生成的 `lib/index.mjs` 和 `lib/index.d.mts`。也可使用 `pnpm pack` 打包，再通过 `dsh plugin --profile web add ./package.tgz` 安装。
 
 profile 提供 `tools` 和 `fs` 服务。私有 `docs/` 文档继续排除在 Git 和发布包之外。
 
