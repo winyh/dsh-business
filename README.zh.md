@@ -12,10 +12,10 @@
 
 闭环使用说明：[接收回执、证据门与反馈回流](./references/closed-loop.md)。跨插件交接先调用 `business_handoff_receive`；接收成功不代表批准或完成。
 
-已适配 DeepSeek Harness **0.1.5-rc.2**（2026-09-22 核对的 npm `latest` 通道）及 Cordis 4.0.2。Node.js 要求为 `^22.19.0 || >=24.0.0`。DSH peer 依赖锁定为本次验证版本，其他发布通道需要重新验证兼容性。
+已适配 DeepSeek Harness **0.2.1-rc.2**（2026-10-29 核对的 npm `latest` 通道）及 Cordis 4.0.5。Node.js 要求为 `^22.19.0 || >=24.0.0`。DSH peer 依赖锁定为本次验证版本，其他发布通道需要重新验证兼容性。
 
 ```sh
-npm install -g @deepseek-ai/dsh@0.1.5-rc.2
+npm install -g @deepseek-ai/dsh@0.2.1-rc.2
 dsh --version
 dsh plugin --profile web add github:winyh/dsh-business
 dsh --profile web --dump-config
