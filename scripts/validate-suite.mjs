@@ -109,6 +109,21 @@ try {
   const salesPath = join(temporary, 'synthetic-crm.csv')
   await writeFile(salesPath, 'outcome,amount,segment,reason\nwon,100,demo,\nlost,80,demo,缺少导出功能\nlost,90,demo,市场需求不明确\n')
   const feedbackArgs = { path: salesPath, outcomeField: 'outcome', amountField: 'amount', segmentField: 'segment', reasonField: 'reason' }
+  const revenuePath = join(temporary, 'revenue-coverage.csv')
+  for (const [amounts, total, known, missing, expected] of [
+    [['0'], 0, 0, 0, 'accepted'], [[''], null, 0, 1, 'needs-validation'],
+    [['50', ''], null, 50, 1, 'needs-validation'],
+  ]) {
+    await writeFile(revenuePath, 'outcome,amount\n' + amounts.map(amount => 'won,' + amount).join('\n') + '\n')
+    const revenue = await invoke('sales_feedback_handoff', { path: revenuePath, target: 'dsh-growth' })
+    assert.equal(revenue.summary.won, amounts.length)
+    assert.equal(revenue.summary.wonAmount, total)
+    assert.equal(revenue.summary.knownWonAmount, known)
+    assert.equal(revenue.summary.missingWonAmounts, missing)
+    const receipt = await invoke('growth_handoff_receive', { artifactJson: JSON.stringify(revenue), initiativeId,
+      owner: 'Finance', action: 'Reconcile booked amounts', dueDate: day(-7) })
+    assert.equal(receipt.status, expected)
+  }
   const feedback = keep(await invoke('sales_feedback_handoff', { ...feedbackArgs, target: 'dsh-product' }))
   await receive('product', feedback)
   const closure = keep(await invoke('product_feedback_close', {
@@ -139,6 +154,12 @@ try {
   assert.equal(unrelated.coordinationClosed, false)
   const repeated = await invoke('growth_attribution_review', { measurementJson: JSON.stringify(plan), metricsJson: JSON.stringify([observation, observation]) })
   assert.equal(repeated.status, 'partial')
+  const foreignFailure = { ok: false, data: { ...opportunity, initiativeId: 'another-project' } }
+  const mixed = await invoke('business_loop_review', { initiativeId, artifactsJson: JSON.stringify([...artifacts, foreignFailure]) })
+  assert.equal(mixed.status, 'ready')
+  await writeFile(join(temporary, 'synthetic-failed.json'), JSON.stringify(foreignFailure))
+  assert.equal((await invoke('business_loop_review', { initiativeId, root: temporary })).status, 'ready')
+  assert.equal((await invoke('business_loop_review', { initiativeId: 'another-project', root: temporary })).status, 'blocked')
   await writeFile(join(temporary, 'synthetic-failed.json'), JSON.stringify({ ok: false, data: opportunity }))
   const failedIndex = await invoke('business_loop_review', { initiativeId, root: temporary })
   assert.equal(failedIndex.status, 'blocked')

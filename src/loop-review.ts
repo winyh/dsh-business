@@ -12,8 +12,14 @@ export function reviewLoopArtifacts(values: unknown[], initiativeId: string) {
   let duplicates = 0
   for (const value of values) {
     const envelope = record(value)
-    if (Object.hasOwn(envelope, 'data') && envelope.ok !== true) { issues.push('存在失败的工具结果，不能用于闭环。'); continue }
     const item = record(Object.hasOwn(envelope, 'data') ? envelope.data : value)
+    if (Object.hasOwn(envelope, 'data') && envelope.ok !== true) {
+      const scopes = new Set([envelope.initiativeId, item.initiativeId]
+        .filter((id): id is string => typeof id === 'string' && !!id.trim()).map(id => id.trim()))
+      // Only an unambiguous foreign failure can be excluded from this review.
+      if (scopes.size !== 1 || scopes.has(initiativeId.trim())) issues.push('存在失败的工具结果，不能用于闭环。')
+      continue
+    }
     const id = typeof item.artifactId === 'string' ? item.artifactId : ''
     if (!id) { issues.push('存在没有 artifactId 的工件。'); continue }
     const previous = unique.get(id)

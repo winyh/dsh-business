@@ -23,6 +23,13 @@ it('rejects failed envelopes and cannot combine unrelated receipts', () => {
   expect(reviewLoopArtifacts([artifact, receipt], 'demo').acceptedReceiptCount).toBe(0)
   expect(reviewLoopArtifacts([{ ok: false, data: artifact }], 'demo').status).toBe('blocked')
 })
+it('isolates failed results only when they unambiguously belong to another initiative', () => {
+  for (const failed of [{ ok: false, data: { initiativeId: 'B' } }, { ok: false, initiativeId: 'B', data: {} }]) {
+    expect(reviewLoopArtifacts([failed], 'A').status).toBe('partial')
+    expect(reviewLoopArtifacts([failed], 'B').status).toBe('blocked')
+  }
+  expect(reviewLoopArtifacts([{ ok: false, initiativeId: 'A', data: { initiativeId: 'B' } }], 'A').status).toBe('blocked')
+})
 it('does not trust a receipt whose original version is absent or stale', () => {
   const receipt = seal({ artifactType: 'handoff-receipt', initiativeId: 'demo', status: 'accepted',
     sourceArtifactId: 'missing', sourceContentHash: 'missing', sourceArtifactType: 'opportunity-handoff', receivedBy: 'dsh-product' })
