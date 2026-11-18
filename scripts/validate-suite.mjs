@@ -82,6 +82,27 @@ try {
   const commercial = keep(await invoke('business_commercial_handoff', { productName: 'Synthetic report', handoffTo: 'dsh-sales',
     pricingJson: JSON.stringify(pricing), profitabilityJson: JSON.stringify(profitability), source: 'synthetic-pricing.md' }))
   await receive('sales', commercial)
+  const handoffArgs = { productName: 'Synthetic report', handoffTo: 'dsh-sales', source: 'pricing.md',
+    pricingJson: JSON.stringify({ ok: true, data: pricing }), profitabilityJson: JSON.stringify({ ok: true, data: profitability }) }
+  assert.equal((await invoke('business_commercial_handoff', handoffArgs)).profitabilitySummary.currency, pricing.currency)
+  for (const [field, data] of [['pricingJson', pricing], ['profitabilityJson', profitability]]) {
+    for (const envelope of [{ ok: false, data }, { data }]) {
+      const rejected = await tools.execute({ name: 'business_commercial_handoff', arguments: { ...handoffArgs, [field]: JSON.stringify(envelope) },
+        callId: 'failed-commercial-' + (++calls), signal: new AbortController().signal })
+      assert.equal(rejected.isError, true)
+      assert.match(JSON.stringify(rejected.content), /unconfirmed tool result/)
+    }
+  }
+  const usdProfit = await invoke('business_profitability_review', { businessName: 'Synthetic report', currency: 'USD',
+    lines: JSON.stringify([{ name: 'demo', units: 10, revenuePerUnit: 100, variableCostPerUnit: 30 }]) })
+  const mixedCurrency = await invoke('business_commercial_handoff', { ...handoffArgs, profitabilityJson: JSON.stringify(usdProfit) })
+  assert.equal(mixedCurrency.status, 'blocked')
+  assert.equal(mixedCurrency.profitabilitySummary.currency, 'USD')
+  assert.equal(mixedCurrency.currency, 'CNY')
+  await receive('sales', mixedCurrency, 'blocked')
+  const held = await invoke('sales_commercial_handoff_review', { handoffJson: JSON.stringify(mixedCurrency) })
+  assert.equal(held.status, 'blocked')
+
   const product = keep(await invoke('product_sales_handoff', {
     productName: 'Synthetic report', productDecision: 'proceed', targetBuyer: '运营人员', customerProblem: '人工导出慢',
     desiredOutcome: '缩短报告时间', valueEvidence: '["模拟试用记录"]', proofPoints: '["模拟用户完成导出"]',

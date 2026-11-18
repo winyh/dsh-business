@@ -34,6 +34,11 @@ export function buildCommercialHandoff(input: {
     if (offer.contributionPerUnit < 0) risks.push(`${offer.sku}/${offer.channel} 单位贡献为负：${money(offer.contributionPerUnit)}。`)
     if (offer.status === 'blocked') risks.push(`${offer.sku}/${offer.channel} 当前报价状态为 blocked。`)
   }
+  if (!input.pricing.currency?.trim()) risks.push('缺少报价币种，请核验定价来源。')
+  if (input.profitability && (!input.profitability.currency?.trim()
+    || input.profitability.currency.trim().toUpperCase() !== input.pricing.currency?.trim().toUpperCase())) {
+    risks.push('盈利复盘和报价的币种缺失或不一致，请提供同币种的已核验数据。')
+  }
   if (!input.profitability) warnings.push('未提供盈利复盘；商业交接不能代表整体盈利能力。')
   if (input.profitability?.status === 'loss-making') risks.push('盈利复盘显示整体为 loss-making，销售推进前需要明确止损或调整方案。')
   const requiredApprovals = [
@@ -50,6 +55,7 @@ export function buildCommercialHandoff(input: {
     ? ['由业务负责人或财务/销售授权人完成审批，不由本插件代替授权。', input.handoffTo === 'dsh-sales' ? '将本交接交给 dsh-sales 运行 sales_commercial_handoff_review。' : '将商业约束带回 dsh-product 的范围、包装和决策门。']
     : ['补齐价格底线、成本、盈利证据或风险处置，再进入正式报价、产品范围或渠道决策。']
   const profitabilitySummary = input.profitability ? {
+    currency: input.profitability.currency?.trim() || '',
     status: input.profitability.status,
     revenue: input.profitability.totals.revenue,
     contribution: input.profitability.totals.contribution,
@@ -104,7 +110,7 @@ export function buildCommercialHandoff(input: {
     ...offers.map((offer) => `| ${offer.sku} | ${offer.channel} | ${money(offer.effectivePrice)} | ${offer.minimumTransactionPrice === undefined ? '缺失' : money(offer.minimumTransactionPrice)} | ${money(offer.unitCost)} | ${money(offer.contributionPerUnit)} | ${money(offer.contributionMarginPct)}% | ${offer.status} |`),
     '',
     '## 盈利摘要',
-    handoff.profitabilitySummary ? `- 状态：${handoff.profitabilitySummary.status}\n- 收入：${money(handoff.profitabilitySummary.revenue)}\n- 贡献：${money(handoff.profitabilitySummary.contribution)}\n- 利润：${money(handoff.profitabilitySummary.profit)}\n- 利润率：${money(handoff.profitabilitySummary.profitMarginPct)}%` : '- 未提供盈利复盘。',
+    handoff.profitabilitySummary ? `- 币种：${handoff.profitabilitySummary.currency || '缺失'}\n- 状态：${handoff.profitabilitySummary.status}\n- 收入：${money(handoff.profitabilitySummary.revenue)}\n- 贡献：${money(handoff.profitabilitySummary.contribution)}\n- 利润：${money(handoff.profitabilitySummary.profit)}\n- 利润率：${money(handoff.profitabilitySummary.profitMarginPct)}%` : '- 未提供盈利复盘。',
     '',
     '## 风险',
     markdownList(risks),

@@ -151,7 +151,11 @@ function profitabilityLinesFromJson(value: string): ProfitabilityLineInput[] {
 function objectFromJson(value: string, label: string): Record<string, unknown> {
   let parsed: unknown
   try { parsed = JSON.parse(value) as unknown } catch (error) { throw new Error(`${label} must be valid JSON: ${error instanceof Error ? error.message : String(error)}`) }
-  const data = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && 'data' in parsed ? (parsed as { data: unknown }).data : parsed
+  let data = parsed
+  if (typeof parsed === 'object' && parsed !== null && 'data' in parsed) {
+    if (!('ok' in parsed) || parsed.ok !== true) throw new Error(label + ' contains an unsuccessful or unconfirmed tool result.')
+    data = parsed.data
+  }
   if (typeof data !== 'object' || data === null || Array.isArray(data)) throw new Error(`${label} must be a JSON object or result envelope.`)
   return data as Record<string, unknown>
 }

@@ -189,6 +189,7 @@ export interface BusinessCommercialHandoff {
   currency: string
   offers: CommercialOfferSummary[]
   profitabilitySummary?: {
+    currency: string
     status: ProfitabilityStatus
     revenue: number
     contribution: number

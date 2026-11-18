@@ -4,6 +4,10 @@ lib/*
 !lib/index.d.mts
 coverage/
 .env
+.env.*
+.deepseek/
+.dsh/
+.dsh-runtime-*/
 .DS_Store
 *.log
 *.tgz
