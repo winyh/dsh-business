@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { executeTool } from '../tests/runtime/execute-tool.mjs'
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -43,7 +44,7 @@ try {
   assert.equal(new Set(names).size, names.length, 'tool names must be unique')
   const name = pkg.name === 'dsh-geo' ? 'geo_setup_check' : prefix + 'onboarding'
   assert.ok(names.includes(name), name + ' must be registered')
-  const invoke = (args, signal = new AbortController().signal) => tools.execute({
+  const invoke = (args, signal = new AbortController().signal) => executeTool(tools, {
     callId: 'compat-read', name, arguments: args, signal,
   })
   const result = await invoke({ root: temporary })
@@ -57,7 +58,7 @@ try {
     assert.ok(result.value.data, 'result must contain structured business output')
   }
   const invalid = await invoke({ root: 42 })
-  const receipt = await tools.execute({
+  const receipt = await executeTool(tools, {
     callId: 'compat-receipt', name: prefix + 'handoff_receive',
     arguments: { artifactJson: '{}', initiativeId: 'runtime-check', owner: 'fixture-owner', action: 'review evidence',
       dueDate: new Date(Date.now() + 86_400_000).toISOString() }, signal: new AbortController().signal,
@@ -65,7 +66,7 @@ try {
   assert.equal(receipt.isError, false, JSON.stringify(receipt))
   assert.equal(receipt.value.data.status, 'blocked', 'invalid handoffs must never be accepted')
   assert.equal(receipt.value.data.completionClaimed, false)
-  const artifactReview = await tools.execute({
+  const artifactReview = await executeTool(tools, {
     callId: 'compat-artifact', name: prefix + 'artifact_review',
     arguments: { artifactJson: '{}' }, signal: new AbortController().signal,
   })
@@ -78,7 +79,7 @@ try {
   assert.ok(plugin?.fiber, 'bundle must load through the Cordis loader')
   await plugin.fiber.dispose()
   assert.ok(tools.schemas().every((tool) => !tool.name.startsWith(prefix)), 'unloading must remove all contributed tools')
-  console.log('DSH 0.2.1-rc.2 runtime ok: ' + pkg.name + ' (' + names.length + ' tools; read, validation, cancellation, unload)')
+  console.log('DSH 0.2.2-rc.3 runtime ok: ' + pkg.name + ' (' + names.length + ' tools; read, validation, cancellation, unload)')
 } finally {
   clearTimeout(deadline)
   await ctx.fiber.dispose()

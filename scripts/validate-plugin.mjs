@@ -33,7 +33,7 @@ if (pkg.scripts?.prepare) fail('GitHub installation must use the committed build
 if (pkg.dsh?.bundle?.patch !== './cordis.patch.yml') fail('DSH bundle patch declaration is missing or invalid')
 if (pkg.exports?.['.']?.default !== './lib/index.mjs') fail('DSH package export must resolve to the built entry')
 for (const dependency of ['@deepseek-ai/dsh-tools', '@deepseek-ai/dsh-fs']) {
-  if (pkg.peerDependencies?.[dependency] !== '0.2.1-rc.2') fail(`${dependency} must match the tested DSH baseline`)
+  if (pkg.peerDependencies?.[dependency] !== '0.2.2-rc.3') fail(`${dependency} must match the tested DSH baseline`)
 }
 if (!pkg.scripts['plugin:runtime:validate']) fail('DSH runtime validation script is required')
 

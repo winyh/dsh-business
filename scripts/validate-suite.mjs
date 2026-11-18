@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { executeTool } from '../tests/runtime/execute-tool.mjs'
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -37,6 +38,7 @@ try {
   await writeFile(configPath, [
     "- name: '@deepseek-ai/dsh-system-prompt'",
     "- name: '@deepseek-ai/dsh-tools'",
+    "- name: '@deepseek-ai/dsh-tool-executor-native'",
     "- name: '@deepseek-ai/dsh-fs-local'", '  config:', '    cwd: ' + JSON.stringify(temporary),
     '- name: ' + JSON.stringify(pathToFileURL(join(webRoot, webPkg.main)).href), '',
   ].join('\n'))
@@ -46,7 +48,7 @@ try {
   const tools = ctx.get('tools')
   let calls = 0
   const invoke = async (name, args) => {
-    const result = await tools.execute({ name, arguments: args, callId: 'loop-' + (++calls), signal: new AbortController().signal })
+    const result = await executeTool(tools, { name, arguments: args, callId: 'loop-' + (++calls), signal: new AbortController().signal })
     assert.equal(result.isError, false, name + ': ' + JSON.stringify(result))
     assert.ok(result.value?.data, name + ' must return structured data')
     return result.value.data
@@ -87,7 +89,7 @@ try {
   assert.equal((await invoke('business_commercial_handoff', handoffArgs)).profitabilitySummary.currency, pricing.currency)
   for (const [field, data] of [['pricingJson', pricing], ['profitabilityJson', profitability]]) {
     for (const envelope of [{ ok: false, data }, { data }]) {
-      const rejected = await tools.execute({ name: 'business_commercial_handoff', arguments: { ...handoffArgs, [field]: JSON.stringify(envelope) },
+      const rejected = await executeTool(tools, { name: 'business_commercial_handoff', arguments: { ...handoffArgs, [field]: JSON.stringify(envelope) },
         callId: 'failed-commercial-' + (++calls), signal: new AbortController().signal })
       assert.equal(rejected.isError, true)
       assert.match(JSON.stringify(rejected.content), /unconfirmed tool result/)
